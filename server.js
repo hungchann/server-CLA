@@ -68,7 +68,7 @@ const convertM4AToWAV = (inputPath, outputPath) => {
 };
 
 // Transcribe audio using Google Speech-to-Text
-const transcribeAudio = async (audioFilePath) => {
+const transcribeAudio = async (audioFilePath, languageCode) => {
   try {
     const audioBytes = await fs.readFile(audioFilePath);
 
@@ -79,7 +79,7 @@ const transcribeAudio = async (audioFilePath) => {
       config: {
         encoding: 'LINEAR16',
         sampleRateHertz: 16000,
-        languageCode: 'en-US', // Change this to your preferred language
+        languageCode, // Use the parameter here
         enableAutomaticPunctuation: true,
         enableWordTimeOffsets: true,
       },
@@ -121,7 +121,6 @@ app.get('/health', (req, res) => {
 // Main endpoint for audio transcription
 app.post('/transcribe', upload.single('audio'), async (req, res) => {
   let tempFiles = [];
-  
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No audio file uploaded' });
@@ -137,12 +136,37 @@ app.post('/transcribe', upload.single('audio'), async (req, res) => {
     console.log('Converting audio format...');
     await convertM4AToWAV(inputPath, outputPath);
 
-    // Transcribe audio
-    console.log('Transcribing audio...');
-    const transcriptionResult = await transcribeAudio(outputPath);
+    // Try all major Chinese dialects
+    const languageCodes = ['zh', 'zh-CN', 'zh-TW', 'zh-HK'];
+    let transcriptionResult = null;
+    let usedLanguageCode = null;
+    for (const code of languageCodes) {
+      console.log(`Trying languageCode: ${code}`);
+      try {
+        const result = await transcribeAudio(outputPath, code);
+        if (result.transcription && result.transcription.trim().length > 0) {
+          transcriptionResult = result;
+          usedLanguageCode = code;
+          break;
+        }
+      } catch (err) {
+        console.error(`Transcription failed for languageCode ${code}:`, err.message);
+      }
+    }
 
     // Clean up temporary files
     await cleanupFiles(tempFiles);
+
+    if (!transcriptionResult) {
+      return res.json({
+        success: true,
+        transcription: '',
+        confidence: 0,
+        wordCount: 0,
+        languageCodeTried: languageCodes,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     // Send response
     res.json({
@@ -150,15 +174,14 @@ app.post('/transcribe', upload.single('audio'), async (req, res) => {
       transcription: transcriptionResult.transcription,
       confidence: transcriptionResult.confidence,
       wordCount: transcriptionResult.words.length,
+      languageCode: usedLanguageCode,
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
     console.error('Error processing audio:', error);
-    
     // Clean up temporary files in case of error
     await cleanupFiles(tempFiles);
-    
     res.status(500).json({
       success: false,
       error: 'Failed to process audio file',
