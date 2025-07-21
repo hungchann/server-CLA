@@ -10,7 +10,7 @@ yarn-error.log*
 .env.production
 
 # Google Cloud credentials
-*.json
+
 service-account-key.json
 
 # Temporary files
