@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech-to-Text Server Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .result {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .loading {
+            color: #007bff;
+            font-style: italic;
+        }
+        .file-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 Speech-to-Text Server Test</h1>
+    
+    <!-- Health Check Section -->
+    <div class="container">
+        <div class="section">
+            <h2>🏥 Server Health Check</h2>
+            <button onclick="checkHealth()">Check Server Health</button>
+            <div id="healthResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Audio Upload Section -->
+    <div class="container">
+        <div class="section">
+            <h2>🎵 Audio Transcription Test</h2>
+            <p>Upload an audio file to test the transcription service:</p>
+            <input type="file" id="audioFile" accept="audio/*" onchange="showFileInfo()">
+            <div id="fileInfo" class="file-info" style="display: none;"></div>
+            <br>
+            <button onclick="transcribeAudio()" id="transcribeBtn" disabled>Transcribe Audio</button>
+            <div id="transcriptionResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+
+
+    <!-- Accuracy Test Section -->
+    <div class="container">
+        <div class="section">
+            <h2>📊 Accuracy Test</h2>
+            <p>Test transcription accuracy with reference text:</p>
+            
+            <div style="margin-bottom: 15px;">
+                <label><strong>Audio File:</strong></label><br>
+                <input type="file" id="accuracyAudioFile" accept="audio/*">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label><strong>Reference Text:</strong></label><br>
+                <textarea id="referenceText" placeholder="Enter reference text here..." rows="3" style="width: 100%; padding: 10px;"></textarea>
+            </div>
+            
+            <button onclick="testAccuracy()" id="accuracyBtn" disabled>Test Accuracy</button>
+            <div id="accuracyResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Health check function
+        async function checkHealth() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Checking server health...';
+
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                resultDiv.className = response.ok ? 'result success' : 'result error';
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Show file info when file is selected
+        function showFileInfo() {
+            const fileInput = document.getElementById('audioFile');
+            const fileInfo = document.getElementById('fileInfo');
+            const transcribeBtn = document.getElementById('transcribeBtn');
+            
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                fileInfo.style.display = 'block';
+                fileInfo.innerHTML = `
+                    <strong>Selected File:</strong> ${file.name}<br>
+                    <strong>Size:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                    <strong>Type:</strong> ${file.type}
+                `;
+                transcribeBtn.disabled = false;
+            } else {
+                fileInfo.style.display = 'none';
+                transcribeBtn.disabled = true;
+            }
+        }
+
+        // Audio transcription function
+        async function transcribeAudio() {
+            const fileInput = document.getElementById('audioFile');
+            const resultDiv = document.getElementById('transcriptionResult');
+            const transcribeBtn = document.getElementById('transcribeBtn');
+            
+            if (!fileInput.files.length) {
+                alert('Please select an audio file first');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('audio', file);
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Transcribing audio... Please wait...';
+            
+            transcribeBtn.disabled = true;
+
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Transcription successful!\n\n` +
+                        `📝 Text: ${data.transcription}\n` +
+                        `🎯 Confidence: ${(data.confidence * 100).toFixed(2)}%\n` +
+                        `📊 Word Count: ${data.wordCount}\n` +
+                        `🌐 Language: ${data.languageCode || 'Auto-detected'}\n` +
+                        `🆔 Request ID: ${data.requestId}\n` +
+                        `⏰ Timestamp: ${data.timestamp}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Transcription failed:\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                transcribeBtn.disabled = false;
+            }
+        }
+
+
+
+
+
+        // Accuracy test function
+        async function testAccuracy() {
+            const fileInput = document.getElementById('accuracyAudioFile');
+            const referenceText = document.getElementById('referenceText').value.trim();
+            const resultDiv = document.getElementById('accuracyResult');
+            const accuracyBtn = document.getElementById('accuracyBtn');
+            
+            if (!fileInput.files.length) {
+                alert('Please select an audio file first');
+                return;
+            }
+
+            if (!referenceText) {
+                alert('Please enter reference text');
+                return;
+            }
+
+            const audioFile = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('audio', audioFile);
+            formData.append('referenceText', referenceText);
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.textContent = 'Testing accuracy... Please wait...';
+            
+            accuracyBtn.disabled = true;
+
+            try {
+                const response = await fetch('/transcribe/accuracy', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    let resultText = `✅ Accuracy test completed!\n\n` +
+                        `📝 Transcription: ${data.transcription}\n` +
+                        `📋 Reference: ${data.referenceText}\n` +
+                        `🎯 Confidence: ${(data.confidence * 100).toFixed(2)}%\n` +
+                        `📊 Word Count: ${data.wordCount}\n` +
+                        `🌐 Language: ${data.languageCode || 'Auto-detected'}\n`;
+
+
+
+                    if (data.accuracy) {
+                        resultText += `\n📈 Accuracy Metrics:\n` +
+                            `   • Word Error Rate: ${(data.accuracy.wer.accuracy * 100).toFixed(2)}%\n` +
+                            `   • Character Error Rate: ${(data.accuracy.cer.accuracy * 100).toFixed(2)}%\n` +
+                            `   • Overall Accuracy: ${(data.accuracy.summary.overallAccuracy * 100).toFixed(2)}%\n` +
+                            `   • Quality: ${data.accuracy.summary.transcriptionQuality}\n`;
+
+
+                    }
+
+                    resultText += `\n🆔 Request ID: ${data.requestId}\n` +
+                        `⏰ Timestamp: ${data.timestamp}`;
+
+                    resultDiv.textContent = resultText;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Accuracy test failed:\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                accuracyBtn.disabled = false;
+            }
+        }
+
+
+
+
+
+        // Update accuracy button state based on inputs
+        function updateAccuracyButtonState() {
+            const audioFile = document.getElementById('accuracyAudioFile').files.length > 0;
+            const referenceText = document.getElementById('referenceText').value.trim().length > 0;
+            const accuracyBtn = document.getElementById('accuracyBtn');
+            
+            accuracyBtn.disabled = !(audioFile && referenceText);
+        }
+
+        // Enable accuracy button when both file and reference are provided
+        document.getElementById('accuracyAudioFile').addEventListener('change', updateAccuracyButtonState);
+        document.getElementById('referenceText').addEventListener('input', updateAccuracyButtonState);
+
+
+        // Auto-check health when page loads
+        window.addEventListener('load', function() {
+            checkHealth();
+        });
+    </script>
+</body>
+</html>

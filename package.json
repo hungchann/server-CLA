@@ -18,13 +18,16 @@
   "license": "ISC",
   "description": "Node.js server for converting M4A audio files and transcribing them using Google Speech-to-Text",
   "dependencies": {
-    "@google-cloud/speech": "^7.1.0",
+    "@google-cloud/speech": "^7.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
     "ffmpeg-static": "^5.2.0",
     "fluent-ffmpeg": "^2.1.3",
-    "multer": "^2.0.1"
+    "multer": "^2.0.1",
+    "chalk": "^5.3.0",
+    "sqlite3": "^5.1.7",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
