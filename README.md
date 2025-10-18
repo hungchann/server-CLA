@@ -76,11 +76,15 @@ npm start
 
 ## Architecture
 
-The server implements a simple request-response approach:
+**Simplified 2-file structure** for easy maintenance:
 
-- **File Processing**: REST API for audio file transcription
-- **Audio Conversion**: FFmpeg integration for format conversion
-- **Error Handling**: Comprehensive error handling and recovery mechanisms
+- **server.js** (60 lines): Express server, routes, middleware
+- **transcribe.js** (400 lines): Complete transcription logic
+  - File upload handling (multer)
+  - Audio conversion (FFmpeg)
+  - Google Speech-to-Text integration
+  - Retry logic & error handling
+  - Request queuing & concurrency control
 
 ## Performance Features
 
